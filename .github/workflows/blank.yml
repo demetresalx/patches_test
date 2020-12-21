@@ -29,6 +29,6 @@ jobs:
      needs: apply-patch
      runs-on: ubuntu-latest
      steps:
-     - name: Print something
-       run: echo Hello idiot
+       - name: Print something
+         run: echo Hello idiot
   

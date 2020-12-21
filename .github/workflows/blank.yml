@@ -6,10 +6,10 @@ name: CI
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
+    paths-ignore: 
+      - '**.yml'
     branches:
       - main
-      paths-ignore: 
-      - '**.yml'
   
 
   # Allows you to run this workflow manually from the Actions tab

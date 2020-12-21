@@ -35,10 +35,3 @@ jobs:
         run: |
           echo Add other actions to build,
           echo test, and deploy your project.
-          
- build-linux:
-   #if patching didn't fail, check full build
-   runs-on: ubuntu-latest
-   needs: apply-patch
-   steps:
-     - run: echo Hi 2nd

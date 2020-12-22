@@ -21,8 +21,14 @@ jobs:
     apply-patch:
      #tries to apply the patch to each version
        runs-on: ubuntu-latest
+       strategy:
+         matrix:
+           versions: [v5.7, v5.8, v5.9]
        steps:
-         - run: echo Hya Hye
+         - uses: actions/checkout@v2
+         - run: echo $LINUX_VERSION
+           env:
+             LINUX_VERSION: ${{ matrix.versions }}
 
     build-linux:
      #after patching completes successfully, try and build the linux kernel, given it

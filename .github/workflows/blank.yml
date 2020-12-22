@@ -36,5 +36,7 @@ jobs:
      runs-on: ubuntu-latest
      steps:
        - name: Print something
-         run: echo Hello idiot
+         run: |
+          echo Hello idiot
+          echo ${{ github.repository }}
   

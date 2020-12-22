@@ -26,9 +26,7 @@ jobs:
            versions: [v5.7, v5.8, v5.9]
        steps:
          - uses: actions/checkout@v2
-         - run: |
-            echo $LINUX_VERSION
-            ls .
+         - run: echo $LINUX_VERSION
            env:
              LINUX_VERSION: ${{ matrix.versions }}
 

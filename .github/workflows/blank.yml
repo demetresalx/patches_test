@@ -21,9 +21,6 @@ jobs:
     apply-patch:
      #tries to apply the patch to each version
        runs-on: ubuntu-latest
-       strategy:
-         matrix:
-           versions: [v5.7, v5.8, v5.9]
        steps:
          - uses: actions/checkout@v2
          - run: echo $LINUX_VERSION

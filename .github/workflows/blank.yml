@@ -24,6 +24,8 @@ jobs:
        steps:
          - uses: actions/checkout@v2
          - run: |
+             git config user.email "ci-bot@nubis-pc.eu"
+             git config user.name "CI Bot"
              for i in $(ls)
              do
               VERSION=$i

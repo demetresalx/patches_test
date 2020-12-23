@@ -32,7 +32,6 @@ jobs:
              for i in $(ls)
              do
               VERSION=$i
-              git clone https://github.com/torvalds/linux -b $VERSION --depth 1
               git clone https://github.com/torvalds/linux -b $VERSION --depth 1 linux-$VERSION
               cd linux-$VERSION
               echo "Patching for $i"

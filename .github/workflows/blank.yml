@@ -50,6 +50,7 @@ jobs:
               touch .config
               make kvmm.config
               make -j$(nproc)
+              if [ $? != 0 ] ; then echo "ERROR:build failed for version $i"; fi;
               cd ..
              done
            env:

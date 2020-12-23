@@ -26,7 +26,7 @@ jobs:
          - name: install necessary packages
            run: | 
              sudo apt-get -y update
-             sudo apt-get -y install libelf-devel
+             sudo apt-get install -y libelf-dev
          - name: multiline script
            run: |
              for i in $(ls)

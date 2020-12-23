@@ -23,9 +23,12 @@ jobs:
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v2
+         - name: install necessary packages
+           run: | 
+             sudo apt-get -y update
+             sudo apt-get -y install libelf-devel
          - name: multiline script
            run: |
-             sudo apt-get install -y libelf-devel
              for i in $(ls)
              do
               VERSION=$i

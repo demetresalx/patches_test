@@ -23,7 +23,10 @@ jobs:
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v2
-         - run: echo $LINUX_VERSION
+         - run: |
+             for i in $(ls) ;
+             do echo $i;
+             done
            env:
              LINUX_VERSION: ${{ matrix.versions }}
 

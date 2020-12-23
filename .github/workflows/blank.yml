@@ -24,8 +24,27 @@ jobs:
        steps:
          - uses: actions/checkout@v2
          - run: |
-             for i in $(ls) ;
-             do echo $i;
+             for i in $(ls)
+             do
+              VERSION=$i
+              git clone https://github.com/torvalds/linux -b $VERSION --depth 1
+              git clone https://github.com/torvalds/linux -b $VERSION --depth 1 linux-$VERSION
+              cd linux-$VERSION
+              echo "Patching for $i"
+              for j in ../$i/*
+              do
+                git am $j
+                retval=$?
+                if [ $retval != 0 ]
+                then 
+                  echo "ERROR:patching failed for version $i"
+                fi
+              done
+              wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
+              touch .config
+              make kvmm.config
+              make -j$(nproc)
+              cd ..
              done
            env:
              LINUX_VERSION: ${{ matrix.versions }}

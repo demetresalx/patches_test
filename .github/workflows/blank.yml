@@ -23,9 +23,8 @@ jobs:
        runs-on: ubuntu-latest
        steps:
          - uses: actions/checkout@v2
-         - run: |
-             git config user.email "ci-bot@nubis-pc.eu"
-             git config user.name "CI Bot"
+         - name: multiline script
+           run: |
              for i in $(ls)
              do
               VERSION=$i
@@ -35,6 +34,8 @@ jobs:
               echo "Patching for $i"
               for j in ../$i/*
               do
+                git config user.email "ci-bot@nubis-pc.eu"
+                git config user.name "CI Bot"
                 git am $j
                 retval=$?
                 if [ $retval != 0 ]

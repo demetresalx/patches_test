@@ -55,6 +55,13 @@ jobs:
                  git am $i
                  echo ::set-output name=patch_exit_code::$?
              done
+             
+         #create issue for patching error
+         - name: Create Patch Issue
+           if: ${{ failure() }}
+           uses: JasonEtco/create-an-issue@v2
+           env:
+             MYMSG: patching failed for version $LINUX_VERSION 
            
            #build the linux kernel for this version. will run only if patching has succeeded
          - name: Build Kernel
@@ -69,21 +76,13 @@ jobs:
              make -j$(nproc)
              echo ::set-output name=build_exit_code::$?
            
-         - name: Create Patching error message
-           if: steps.apply-patch.outputs.patch_exit_code == 1
-           run: |
-             export MYMSG="PATCHING FAILED FOR VERSION $LINUX_VERSION "
-             echo "::set-env name=MYMSG::$MYMSG"
-         
-         - name: Create Building error message
-           if: steps.build-kernel.outputs.build_exit_code == 1
-           run: |
-             export MYMSG="BUILDING FAILED FOR VERSION $LINUX_VERSION "
-             echo "::set-env name=MYMSG::$MYMSG"
-           
-         - name: Create Issue
-           if: steps.apply-patch.outputs.patch_exit_code == 1 || steps.build-kernel.outputs.build_exit_code == 1
+         #create issue for patching error
+         - name: Create Build Issue
+           if: ${{ failure() }}
            uses: JasonEtco/create-an-issue@v2
+           env:
+             MYMSG: building failed for version $LINUX_VERSION 
            
+                   
              
 

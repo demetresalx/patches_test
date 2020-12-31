@@ -21,6 +21,9 @@ jobs:
     Patch-Linux:
      #tries to apply the patch to each version
        runs-on: ubuntu-latest
+       defaults:
+         run:
+           working-directory: .
        #strategy matrix to run jobs in parallel for each version
        strategy:
          matrix:

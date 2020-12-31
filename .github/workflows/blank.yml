@@ -45,6 +45,7 @@ jobs:
          - name: Apply patches
            id: apply-patch
            run: |
+             echo $PWD
              for i in ../*.patch
              do
                  git config user.name "CI Bot"

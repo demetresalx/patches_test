@@ -30,6 +30,7 @@ jobs:
        env:
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
              LINUX_VERSION: ${{ matrix.versions }}
+             MYMSG: haha
        
        steps:
          - uses: actions/checkout@v2
@@ -47,8 +48,7 @@ jobs:
            id: apply-patch
            #working-directory: linux-$LINUX_VERSION
            run: |
-             export MYMSG="PATCHING FAILED FOR VERSION $LINUX_VERSION "
-             echo "::set-env name=MYMSG::$MYMSG"
+             echo "NYMSG=Patching failed for version $LINUX_VERSION" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              for i in ../*.patch
              do
@@ -64,8 +64,7 @@ jobs:
            if: steps.apply-patch.outputs.patch_exit_code == 0
            #working-directory: linux-$LINUX_VERSION
            run: |
-             export MYMSG="BUILDING FAILED FOR VERSION $LINUX_VERSION "
-             echo "::set-env name=MYMSG::$MYMSG"
+             echo "MYMSG=Building failed for version $LINUX_VERSION" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
              touch .config

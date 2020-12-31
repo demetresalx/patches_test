@@ -47,6 +47,8 @@ jobs:
            run: |
              for i in ../*.patch
              do
+                 git config user.name "CI Bot"
+                 git config user.email "ci-bot@nubis-pc.eu"
                  git am $i
                  echo ::set-output name=patch_exit_code::$?
              done

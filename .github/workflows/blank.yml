@@ -25,6 +25,7 @@ jobs:
        strategy:
          matrix:
            versions: [ v5.7, v5.8, v5.9 ]
+         fail-fast: false
        
        env:
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

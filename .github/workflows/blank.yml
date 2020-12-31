@@ -45,9 +45,10 @@ jobs:
          
          - name: Apply patches
            id: apply-patch
-           continue-on-error: true
            #working-directory: linux-$LINUX_VERSION
            run: |
+             export MYMSG="PATCHING FAILED FOR VERSION $LINUX_VERSION "
+             echo "::set-env name=MYMSG::$MYMSG"
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              for i in ../*.patch
              do
@@ -62,8 +63,9 @@ jobs:
            id: build-kernel
            if: steps.apply-patch.outputs.patch_exit_code == 0
            #working-directory: linux-$LINUX_VERSION
-           continue-on-error: true
            run: |
+             export MYMSG="BUILDING FAILED FOR VERSION $LINUX_VERSION "
+             echo "::set-env name=MYMSG::$MYMSG"
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
              touch .config
@@ -71,20 +73,8 @@ jobs:
              make -j$(nproc)
              echo ::set-output name=build_exit_code::$?
            
-         - name: Create Patching error message
-           if: steps.apply-patch.outputs.patch_exit_code == 1
-           run: |
-             export MYMSG="PATCHING FAILED FOR VERSION $LINUX_VERSION "
-             echo "::set-env name=MYMSG::$MYMSG"
-         
-         - name: Create Building error message
-           if: steps.build-kernel.outputs.build_exit_code == 1
-           run: |
-             export MYMSG="BUILDING FAILED FOR VERSION $LINUX_VERSION "
-             echo "::set-env name=MYMSG::$MYMSG"
-           
          - name: Create Issue
-           if: steps.apply-patch.outputs.patch_exit_code == 1 || steps.build-kernel.outputs.build_exit_code == 1
+           if: ${{ failure() }}
            uses: JasonEtco/create-an-issue@v2
            
              

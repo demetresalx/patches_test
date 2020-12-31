@@ -44,9 +44,8 @@ jobs:
          
          - name: Apply patches
            id: apply-patch
+           working-directory: linux-$LINUX_VERSION
            run: |
-             cd linux-$LINUX_VERSION
-             echo $PWD
              for i in ../*.patch
              do
                  git config user.name "CI Bot"
@@ -59,6 +58,7 @@ jobs:
          - name: Build Kernel
            id: build-kernel
            if: steps.apply-patch.outputs.patch_exit_code == 0
+           working-directory: linux-$LINUX_VERSION
            run: |
              wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
              touch .config

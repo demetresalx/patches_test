@@ -30,7 +30,7 @@ jobs:
        env:
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
              LINUX_VERSION: ${{ matrix.versions }}
-             MYMSG: haha
+             #MYMSG: haha
        
        steps:
          - uses: actions/checkout@v2

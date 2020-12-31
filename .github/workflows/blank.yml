@@ -45,6 +45,7 @@ jobs:
          - name: Apply patches
            id: apply-patch
            run: |
+             cd linux-$LINUX_VERSION
              echo $PWD
              for i in ../*.patch
              do

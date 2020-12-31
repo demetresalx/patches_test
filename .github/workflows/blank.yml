@@ -18,7 +18,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains two jobs
-    Patch Linux:
+    Patch-Linux:
      #tries to apply the patch to each version
        runs-on: ubuntu-latest
        #strategy matrix to run jobs in parallel for each version

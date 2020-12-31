@@ -21,9 +21,6 @@ jobs:
     Patch-Linux:
      #tries to apply the patch to each version
        runs-on: ubuntu-latest
-       defaults:
-         run:
-           working-directory: .
        #strategy matrix to run jobs in parallel for each version
        strategy:
          matrix:
@@ -47,8 +44,10 @@ jobs:
          
          - name: Apply patches
            id: apply-patch
-           working-directory: linux-$LINUX_VERSION
+           #working-directory: linux-$LINUX_VERSION
            run: |
+             echo $PWD
+             ls
              for i in ../*.patch
              do
                  git config user.name "CI Bot"

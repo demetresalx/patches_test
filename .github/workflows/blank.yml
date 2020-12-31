@@ -18,51 +18,64 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains two jobs
-    apply-patch:
+    Patch Linux:
      #tries to apply the patch to each version
        runs-on: ubuntu-latest
+       #strategy matrix to run jobs in parallel for each version
+       strategy:
+         matrix:
+           versions: [ v5.7, v5.8, v5.9 ]
+       
        steps:
          - uses: actions/checkout@v2
          - name: install necessary packages
            run: | 
              sudo apt-get -y update
              sudo apt-get install -y libelf-dev
-         - name: multiline script
+         - name: Clone linux
            run: |
-             for i in $(ls)
+             cd $LINUX_VERSION
+             git clone https://github.com/torvalds/linux -b $VERSION --depth 1 linux-$LINUX_VERSION
+             cd linux-$LINUX_VERSION
+         
+         - name: Apply patches
+           id: apply-patch
+           run: |
+             for i in ../*.patch
              do
-              VERSION=$i
-              git clone https://github.com/torvalds/linux -b $VERSION --depth 1 linux-$VERSION
-              cd linux-$VERSION
-              echo "Patching for $i"
-              for j in ../$i/*
-              do
-                git config user.email "ci-bot@nubis-pc.eu"
-                git config user.name "CI Bot"
-                git am $j
-                retval=$?
-                if [ $retval != 0 ]
-                then 
-                  echo "ERROR:patching failed for version $i"
-                fi
-              done
-              wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
-              touch .config
-              make kvmm.config
-              make -j$(nproc)
-              if [ $? != 0 ] ; then echo "ERROR:build failed for version $i"; fi;
-              cd ..
+                 git am $i
+                 echo ::set-output name=patch_exit_code::$?
              done
+           
+           #build the linux kernel for this version. will run only if patching has succeeded
+         - name: Build Kernel
+           id: build-kernel
+           if: steps.apply-patch.outputs.patch_exit_code == 0
+           run: |
+             wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
+             touch .config
+             make kvmm.config
+             make -j$(nproc)
+             echo ::set-output name=build_exit_code::$?
+           
+         - name: Create Patching error message
+           if: steps.apply-patch.outputs.patch_exit_code == 1
+           run: |
+             export MYMSG="PATCHING FAILED FOR VERSION $LINUX_VERSION "
+             echo "::set-env name=MYMSG::$MYMSG"
+         
+         - name: Create Building error message
+           if: steps.build-kernel.outputs.build_exit_code == 1
+           run: |
+             export MYMSG="BUILDING FAILED FOR VERSION $LINUX_VERSION "
+             echo "::set-env name=MYMSG::$MYMSG"
+           
+         - name: Create Issue
+           if: steps.apply-patch.outputs.patch_exit_code == 1 || steps.build-kernel.outputs.build_exit_code == 1
+           uses: JasonEtco/create-an-issue@v2
+           
+             
            env:
+             GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
              LINUX_VERSION: ${{ matrix.versions }}
 
-    build-linux:
-     #after patching completes successfully, try and build the linux kernel, given it
-     needs: apply-patch
-     runs-on: ubuntu-latest
-     steps:
-       - name: Print something
-         run: |
-          echo Hello idiot
-          echo ${{ github.repository }}
-  

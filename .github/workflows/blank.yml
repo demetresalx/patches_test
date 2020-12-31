@@ -35,7 +35,7 @@ jobs:
          - name: Clone linux
            run: |
              cd $LINUX_VERSION
-             git clone https://github.com/torvalds/linux -b $VERSION --depth 1 linux-$LINUX_VERSION
+             git clone https://github.com/torvalds/linux -b $LINUX_VERSION --depth 1 linux-$LINUX_VERSION
              cd linux-$LINUX_VERSION
          
          - name: Apply patches

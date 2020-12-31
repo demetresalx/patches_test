@@ -48,7 +48,7 @@ jobs:
            id: apply-patch
            #working-directory: linux-$LINUX_VERSION
            run: |
-             echo "NYMSG=Patching failed for version $LINUX_VERSION" >> $GITHUB_ENV
+             echo "MYMSG=Patching failed for version $LINUX_VERSION" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              for i in ../*.patch
              do

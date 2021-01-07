@@ -2,14 +2,13 @@
 
 name: CI
 
-# Controls when the action will run. 
+# Controls when the action will rrun. 
 on:
   # Triggers the workflow on push or pull request events but only for the main branch
   push:
-    paths-ignore: 
-      - '**.yl'
     branches:
       - main
+      - action_branch
   
 
   # Allows you to run this workflow manually from the Actions tab
@@ -20,7 +19,7 @@ jobs:
   # This workflow contains two jobs
     Patch-Linux:
      #tries to apply the patch to each version
-       runs-on: ubuntu-latest
+       runs-on: [ubuntu-latest]
        #strategy matrix to run jobs in parallel for each version
        strategy:
          matrix:
@@ -30,7 +29,6 @@ jobs:
        env:
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
              LINUX_VERSION: ${{ matrix.versions }}
-             #MYMSG: haha
        
        steps:
          - uses: actions/checkout@v2
@@ -38,6 +36,7 @@ jobs:
            run: | 
              sudo apt-get -y update
              sudo apt-get install -y libelf-dev
+             
          - name: Clone linux
            run: |
              cd $LINUX_VERSION
@@ -48,6 +47,7 @@ jobs:
            id: apply-patch
            #working-directory: linux-$LINUX_VERSION
            run: |
+             echo ::set-output name=patch_exit_code::1
              echo "MYMSG=Patching failed for version $LINUX_VERSION" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              for i in ../*.patch
@@ -55,8 +55,8 @@ jobs:
                  git config user.name "CI Bot"
                  git config user.email "ci-bot@nubis-pc.eu"
                  git am $i
-                 echo ::set-output name=patch_exit_code::$?
              done
+             echo ::set-output name=patch_exit_code::0
            
            #build the linux kernel for this version. will run only if patching has succeeded
          - name: Build Kernel
@@ -64,6 +64,7 @@ jobs:
            if: steps.apply-patch.outputs.patch_exit_code == 0
            #working-directory: linux-$LINUX_VERSION
            run: |
+             echo ::set-output name=build_exit_code::1
              echo "MYMSG=Building failed for version $LINUX_VERSION" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
@@ -71,9 +72,20 @@ jobs:
              make kvmm.config
              make -j$(nproc)
              echo ::set-output name=build_exit_code::$?
+             
+         - name: Set log
+           if: ${{ failure() }}
+           run: |
+             #echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
+             #echo "JID=${{ github.job }}" >> $GITHUB_ENV
+             ISSUE_OUTPUT=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$REPO/actions/runs/$JID/logs)
+             echo "LOGLINK=$ISSUE_OUTPUT" >> $GITHUB_ENV
+           env:
+             REPO: ${{ github.repository }}
+             JID: ${{ github.run_id }}
            
          - name: Create Issue
-           if: ${{ failure() }}
+           if: ${{ failure() && (steps.apply-patch.outputs.patch_exit_code != 0 || steps.build-kernel.outputs.build_exit_code != 0) }}
            uses: JasonEtco/create-an-issue@v2
            
              

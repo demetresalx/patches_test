@@ -38,10 +38,10 @@ jobs:
         id: set-matrix
         run: |
           folders="${{ steps.folders.outputs.folders }}"
-          JSON="{\"paths\":["
+          JSON="{\"versions\":["
           # Loop by lines
           while read path; do
-          # Add item to the matrix only if it is not already included
+          # Add item to the matrix only if it is not already included and remove /
           path=${path%?}
           JSONline="\"$path\","
           if [[ "$JSON" != *"$JSONline"* ]]; then

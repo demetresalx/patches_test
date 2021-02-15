@@ -2,53 +2,101 @@
 
 name: CI
 
-# Controls when the action will rrun. 
+# Controls when the action will rrun.
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
+  # Triggers the workflow on push or pull requeest events but only for the main branch
   push:
     branches:
       - main
       - action_branch
-  
+
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains two jobs
+  # This workflow contains two jobs. The first one will create a dynamic matrix to use as strategy for the second job
+    generate-matrix:
+      name: Generate matrix for build
+      runs-on: ubuntu-latest
+      outputs:
+        matrix: ${{ steps.set-matrix.outputs.matrix }}
+      steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+        with:
+          fetch-depth: 0
+      - name: Check changed files
+        id: folders
+        run: |
+          export folders=$( ls -1d */ )
+          echo "$folders"
+          # Escape newlines (replace \n with %0A)
+          echo "::set-output name=folders::$( echo "$folders" | sed ':a;N;$!ba;s/\n/%0A/g' )"
+      - name: Set matrix for build
+        id: set-matrix
+        run: |
+          folders="${{ steps.folders.outputs.folders }}"
+          JSON="{\"paths\":["
+          # Loop by lines
+          while read path; do
+          # Add item to the matrix only if it is not already included
+          JSONline="\"$path\","
+          if [[ "$JSON" != *"$JSONline"* ]]; then
+          JSON="$JSON$JSONline"
+          fi
+          done <<< "$folders"
+          # Remove last "," and add closing brackets
+          if [[ $JSON == *, ]]; then
+          JSON="${JSON%?}"
+          fi
+          JSON="$JSON]}"
+          echo $JSON
+          # Set output
+          echo "::set-output name=matrix::$( echo "$JSON" )"
+    
+    
     Patch-Linux:
      #tries to apply the patch to each version
+       needs: [generate-matrix]
        runs-on: [ubuntu-latest]
        #strategy matrix to run jobs in parallel for each version
        strategy:
          matrix:
-           versions: [ v5.7, v5.8, v5.9 ]
+           ${{fromJson(needs.generate-matrix.outputs.matrix)}}
+           architecture: [ x86_64, arm64 ]
          fail-fast: false
-       
+
        env:
              GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
              LINUX_VERSION: ${{ matrix.versions }}
-       
+             ARCHITECTURE: ${{ matrix.architecture }}
+
        steps:
          - uses: actions/checkout@v2
          - name: install necessary packages
-           run: | 
+           run: |
              sudo apt-get -y update
-             sudo apt-get install -y libelf-dev
-             
+             sudo apt-get -y install build-essential libncurses-dev bc bison flex libssl-dev libelf-dev
+             sudo apt-get -y install fakeroot rsync git kmod cpio
+             if [[ $ARCHITECTURE == "arm64" ]]
+             then
+                sudo apt-get -y install gcc-aarch64-linux-gnu
+             fi
+
          - name: Clone linux
            run: |
              cd $LINUX_VERSION
              git clone https://github.com/torvalds/linux -b $LINUX_VERSION --depth 1 linux-$LINUX_VERSION
              cd linux-$LINUX_VERSION
-         
+
          - name: Apply patches
            id: apply-patch
            #working-directory: linux-$LINUX_VERSION
            run: |
              echo ::set-output name=patch_exit_code::1
-             echo "MYMSG=Patching failed for version $LINUX_VERSION" >> $GITHUB_ENV
+             echo "MYMSG=Patching failed for version $LINUX_VERSION, architecture $ARCHITECTURE" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
              for i in ../*.patch
              do
@@ -57,7 +105,7 @@ jobs:
                  git am $i
              done
              echo ::set-output name=patch_exit_code::0
-           
+
            #build the linux kernel for this version. will run only if patching has succeeded
          - name: Build Kernel
            id: build-kernel
@@ -65,28 +113,54 @@ jobs:
            #working-directory: linux-$LINUX_VERSION
            run: |
              echo ::set-output name=build_exit_code::1
-             echo "MYMSG=Building failed for version $LINUX_VERSION" >> $GITHUB_ENV
+             deliverypath=$PWD
+             echo "MYMSG=Building failed for version $LINUX_VERSION, architecture $ARCHITECTURE" >> $GITHUB_ENV
              cd $LINUX_VERSION/linux-$LINUX_VERSION
-             wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
-             touch .config
-             make kvmm.config
-             make -j$(nproc)
+             sudo mkdir -p artifacts/$ARCHITECTURE/$LINUX_VERSION
+             if [[ $ARCHITECTURE == "arm64" ]]
+             then
+                wget https://gist.githubusercontent.com/ananos/dc2e2323f1b9bcb93c24f307e367ae80/raw/a001e5dd3b02fb79001296b1f9ae39270288f8d9/aarch64_config -O arch/arm64/configs/kvmm.config
+                touch .config
+                CROSS_COMPILE=aarch64-linux-gnu- ARCH=arm64 make kvmm.config
+                CROSS_COMPILE=aarch64-linux-gnu- ARCH=arm64 make deb-pkg -j $(nproc)
+                sudo mv ../*linux-image*-dbg*.deb artifacts/$ARCHITECTURE/$LINUX_VERSION/linux-image-$LINUX_VERSION-dbg-latest.deb
+             else
+                wget https://gist.githubusercontent.com/ananos/4749c77111a560503bd9725409d82800/raw/3e65dec157a7a19d965675054ef85ce8bc06c74b/basic%2520kernel%2520config -O arch/x86/configs/kvmm.config
+                touch .config
+                make kvmm.config
+                make deb-pkg -j $(nproc)
+             fi
              echo ::set-output name=build_exit_code::$?
-             
-         - name: Set log
+             sudo mv ../*linux-headers*.deb artifacts/$ARCHITECTURE/$LINUX_VERSION/linux-headers-$LINUX_VERSION-latest.deb
+             sudo mv ../*linux-image*.deb artifacts/$ARCHITECTURE/$LINUX_VERSION/linux-image-$LINUX_VERSION-latest.deb
+             sudo mv ../*linux-libc-dev*.deb artifacts/$ARCHITECTURE/$LINUX_VERSION/linux-libc-dev_$LINUX_VERSION-latest.deb
+
+           #If build was successful, upload the kernel deb artifacts for the kvmm module builder to have available
+         - name: Upload Kernel artifact
+           id: upload-artifact
+           if: steps.build-kernel.outputs.build_exit_code == 0
+           uses: cloudkernels/minio-upload@master
+           with:
+             url: https://s3.nubificus.co.uk
+             access-key: ${{ secrets.AWS_ACCESS_KEY }}
+             secret-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+             local-path: ${{ matrix.versions }}/linux-${{ matrix.versions }}/artifacts/${{ matrix.architecture }}/${{ matrix.versions }}
+             remote-path: nbfc-assets/github/linux_kernel_debs/${{ matrix.architecture }}/
+
+         #some (safe) shenanigans to access this specific job's logs.
+         - name: Set logs link
            if: ${{ failure() }}
            run: |
-             #echo "REPO=${{ github.repository }}" >> $GITHUB_ENV
-             #echo "JID=${{ github.job }}" >> $GITHUB_ENV
-             ISSUE_OUTPUT=$(curl -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/$REPO/actions/runs/$JID/logs)
-             echo "LOGLINK=$ISSUE_OUTPUT" >> $GITHUB_ENV
+             curl -i -u ${{ github.repository_owner }}:${{ secrets.GITHUB_TOKEN }} -H "Accept: application/vnd.github.v3+json" https://api.github.com/repos/${{ github.repository }}/actions/runs/${{ github.run_id }}/jobs > json.txt
+             idparser=$(awk '/${{ matrix.versions }}, ${{ matrix.architecture }}/{ print NR; exit }' json.txt)
+             idparser=$((idparser-11))
+             idparser=$(sed "$idparser q;d" json.txt)
+             idparser=$(echo $idparser | cut -c 7-)
+             echo "LOGLINK=https://github.com/${{ github.repository }}/runs/$idparser?check_suite_focus=true" >> $GITHUB_ENV
            env:
              REPO: ${{ github.repository }}
              JID: ${{ github.run_id }}
-           
+
          - name: Create Issue
            if: ${{ failure() && (steps.apply-patch.outputs.patch_exit_code != 0 || steps.build-kernel.outputs.build_exit_code != 0) }}
            uses: JasonEtco/create-an-issue@v2
-           
-             
-

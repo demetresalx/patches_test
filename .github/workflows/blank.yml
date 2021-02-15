@@ -42,6 +42,7 @@ jobs:
           # Loop by lines
           while read path; do
           # Add item to the matrix only if it is not already included
+          path=${path%?}
           JSONline="\"$path\","
           if [[ "$JSON" != *"$JSONline"* ]]; then
           JSON="$JSON$JSONline"
